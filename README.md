@@ -1,5 +1,7 @@
 # ChenChen913 / maoke-skills
 
+English | [中文](./README_CN.md)
+
 A personal collection of Claude Code skills built and refined through real workflows — covering AI image prompting, content creation, technical learning, decision-making, and skill ecosystem management.
 
 ---
