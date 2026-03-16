@@ -53,6 +53,12 @@ The AI will handle the download and placement automatically.
 | **daily-decision-making** | Structured personal decision framework for life and career choices. Implements a Personal Decision Database to handle trade-offs and uncertainty. |
 | **knowledge-distiller** | Extracts and structures tacit knowledge through Socratic questioning. Turns vague ideas into clear methodologies and documented expertise. |
 
+### 🏥 Health & Fitness
+
+| Skill | Description |
+|---|---|
+| **healthfit** | Comprehensive personal health management system integrating Traditional Chinese Medicine (TCM) with modern sports science. Features four independent consultants (Coach Alex for training, Dr. Mei for nutrition, Analyst Ray for data, Dr. Chen for TCM constitution), gender-specific training plans (M1-M5/F1-F6), TCM constitution identification with tongue diagnosis, 24 solar term wellness guidance, and privacy-protected sexual health tracking. Includes 48-term knowledge base, achievement system, and three-layer data storage (JSON/TXT/SQLite). |
+
 ### 💻 Development
 
 | Skill | Description |

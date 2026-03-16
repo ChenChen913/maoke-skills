@@ -49,6 +49,12 @@ git clone https://github.com/ChenChen913/maoke-skills.git
 | **daily-decision-making** | 个人生活与职业决策结构化框架。建立个人决策数据库，系统处理不确定性与多方权衡。 |
 | **knowledge-distiller** | 通过苏格拉底式追问提取和结构化隐性知识，将模糊想法转化为清晰方法论，帮助记录个人专业经验。 |
 
+### 🏥 健康与健身
+
+| 技能 | 描述 |
+|---|---|
+| **healthfit** | 个人全维度健康管理系统，中西医融合。提供四位独立顾问（Coach Alex 运动教练、Dr. Mei 营养师、Analyst Ray 数据分析师、Dr. Chen 中医体质顾问），支持性别差异化训练（M1-M5/F1-F6）、中医体质辨识与舌诊追踪、二十四节气养生、性健康隐私记录。内置 48 条术语知识库、成就系统、三层数据存储架构（JSON/TXT/SQLite）。综合评分 4.9/5，达到发布就绪标准。 |
+
 ### 💻 开发工程
 
 | 技能 | 描述 |
@@ -77,6 +83,7 @@ maoke-skills/
     ├── city-architect
     ├── comic-architect
     ├── daily-decision-making
+    ├── healthfit
     ├── knowledge-distiller
     ├── learning-assistant
     ├── local-skill-manager
