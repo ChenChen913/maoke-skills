@@ -131,7 +131,7 @@ healthfit/
 - `profile.json` - 基础生理数据档案
 - `profile_health_history.json` - 健康史（用药/疾病/手术）
 - `profile_fitness_baseline.json` - 体测基准数据
-- `private_sexual_health.json` - 性健康隐私数据（独立加密标记）
+- `private_sexual_health.json` - 性健康隐私数据（独立隔离文件；默认被排除在所有备份和导出操作之外）
 - `tcm_profile.json` - 中医体质档案
 - `daily/YYYY-MM-DD.json` - 每日综合日志
 
@@ -180,7 +180,7 @@ healthfit/
 ### 隐私保护
 
 - 所有数据存储在本地 `data/` 目录，仅用户本人可访问
-- 性健康数据存储在独立文件 `private_sexual_health.json`，需二次确认才读取
+- 性健康数据存储在独立隔离文件 `private_sexual_health.json`，**默认被排除在所有备份和导出操作之外**。如需包含该文件，用户须在运行脚本时附加 `--include-private` 参数，并在终端交互式提示中手动输入确认——这就是保护该文件的"二次确认"门控机制。
 - 用户可随时执行"导出我的数据"获取全部原始数据
 - 用户可随时执行"清除健康数据"完全重置
 
