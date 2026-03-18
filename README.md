@@ -87,6 +87,7 @@ maoke-skills/
     ├── city-architect
     ├── comic-architect
     ├── daily-decision-making
+    ├── healthfit
     ├── knowledge-distiller
     ├── learning-assistant
     ├── local-skill-manager

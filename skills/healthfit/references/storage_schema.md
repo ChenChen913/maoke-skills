@@ -9,7 +9,7 @@ HealthFit 数据存储
 │   ├── profile.json — 基础生理数据档案
 │   ├── profile_health_history.json — 健康史
 │   ├── profile_fitness_baseline.json — 体测基准
-│   ├── private_sexual_health.json — 性健康隐私数据
+│   ├── private_sexual_health.json — 性健康隐私数据（独立存储，二次确认门控）
 │   ├── tcm_profile.json — 中医体质档案
 │   └── daily/YYYY-MM-DD.json — 每日综合日志
 │
@@ -20,15 +20,120 @@ HealthFit 数据存储
 │   ├── glossary_tcm.txt — 中医术语库
 │   └── achievements.txt — 成就里程碑记录
 │
-└── SQLite 数据库（查询优化）
-    └── healthfit.db
-        ├── workouts — 运动记录表
-        ├── nutrition_entries — 饮食记录表
-        ├── metrics_daily — 每日身体指标表
-        ├── pr_records — 个人最佳成绩表
-        ├── weekly_summaries — 周统计缓存
-        └── monthly_summaries — 月统计缓存
+├── SQLite 数据库（查询优化）
+│   └── healthfit.db
+│       ├── workouts — 运动记录表
+│       ├── nutrition_entries — 饮食记录表
+│       ├── metrics_daily — 每日身体指标表
+│       ├── pr_records — 个人最佳成绩表
+│       ├── weekly_summaries — 周统计缓存
+│       └── monthly_summaries — 月统计缓存
+│
+└── assets/ 资源文件（非用户数据）
+    └── exercise_images/ — 动作图解资源（公开资源/用户自拍）
+        └── [用户自拍照片建议加密存储或存于私有目录]
 ```
+
+---
+
+## 隐私数据保护说明
+
+### 敏感数据分类
+
+| 数据类别 | 文件 | 保护级别 | 说明 |
+|---------|------|---------|------|
+| **高度敏感** | `private_sexual_health.json` | 🔴 最高级 | 独立存储，默认排除备份/导出，需二次确认 |
+| **中度敏感** | `profile_health_history.json` | 🟡 高级 | 包含用药史、疾病史，建议加密 |
+| **低敏感度** | `profile.json`, `workout_log.txt` | 🟢 普通级 | 可正常备份/导出 |
+| **用户自拍照片** | `assets/exercise_images/` | 🟡 高级 | 建议加密存储或存于私有目录，不随技能分发 |
+
+### 用户自拍照片存储方案
+
+**如用户选择拍摄动作照片供 AI 纠正：**
+
+1. **存储位置：** 建议存于用户私有目录（如 `data/private_photos/`），而非技能目录
+2. **加密方案：** 可使用 base64 编码 + 密码保护，或调用系统加密 API
+3. **访问控制：** 仅在用户明确授权时读取，用后及时清理
+4. **备份策略：** 默认排除在备份之外，用户可手动选择是否包含
+5. **当前状态：** ⚠️ v3.1 计划功能，当前版本需手动上传图片到 `exercise_images` 目录
+
+**实现示例（伪代码）：**
+```python
+# 用户自拍照片存储建议
+photo_path = Path(__file__).parent.parent / "data" / "private_photos" / f"{date}_{exercise}.jpg"
+# 建议：使用加密库（如 cryptography）对照片进行加密存储
+# 或：仅保存照片的 base64 编码到 JSON，原始照片不落地
+```
+
+---
+
+### 性健康数据加密方案（可选）
+
+**当前状态：** ⚠️ 明文存储（依赖文件隔离 + 备份排除）
+
+**加密升级方案（未来迭代）：**
+
+#### 方案 A：简单加密（Base64 + XOR）
+```python
+# scripts/crypto_utils.py
+import base64
+import hashlib
+import json
+
+def encrypt_data(data: dict, password: str) -> str:
+    """简单加密（非军用级，但足够防止随意查看）"""
+    json_str = json.dumps(data, ensure_ascii=False)
+    key = hashlib.sha256(password.encode()).digest()
+    encrypted_bytes = bytes([b ^ key[i % len(key)] for i, b in enumerate(json_str.encode('utf-8'))])
+    return base64.b64encode(encrypted_bytes).decode('ascii')
+
+def decrypt_data(encrypted_str: str, password: str) -> dict:
+    """解密数据"""
+    key = hashlib.sha256(password.encode()).digest()
+    encrypted_bytes = base64.b64decode(encrypted_str.encode('ascii'))
+    decrypted_bytes = bytes([b ^ key[i % len(key)] for i, b in enumerate(encrypted_bytes)])
+    return json.loads(decrypted_bytes.decode('utf-8'))
+```
+
+#### 方案 B：AES-256 加密（推荐）
+```python
+# scripts/secure_storage.py
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import base64
+import os
+
+def generate_key(password: str, salt: bytes = None) -> tuple:
+    """从密码生成加密密钥"""
+    if salt is None:
+        salt = os.urandom(16)
+    
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=480000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+    return key, salt
+
+def encrypt_file(data: dict, password: str, filepath: Path):
+    """加密并保存文件"""
+    key, salt = generate_key(password)
+    fernet = Fernet(key)
+    
+    json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
+    encrypted = fernet.encrypt(json_bytes)
+    
+    # 保存 salt + 加密数据
+    filepath.write_bytes(salt + encrypted)
+```
+
+**实施建议：**
+- 当前版本：明文存储 + 文件隔离 + 备份排除（已足够安全）
+- 未来版本：可选加密升级（用户设置密码后启用）
+- 密码管理：密码仅存于用户记忆中，系统不保存（丢失无法恢复）
 
 ---
 

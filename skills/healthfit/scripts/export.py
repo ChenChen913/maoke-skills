@@ -1,267 +1,238 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 HealthFit 数据导出脚本
-功能：将 JSON/TXT/SQLite 数据导出为 Markdown 报告
-
-隐私设计：
-  private_sexual_health.json 默认被排除在所有导出之外。
-  如需包含，请使用 --include-private 参数运行，并在交互式提示中确认。
-  这是 SKILL.md 中"二次确认"承诺的实际实现。
+支持导出为 JSON、CSV、Markdown 格式
 """
 
 import json
-import argparse
-from datetime import datetime
+import csv
+import sqlite3
 from pathlib import Path
-
-# ─── 敏感文件名单 ─────────────────────────────────────────────────────────────
-PRIVATE_JSON_FILES = {
-    "private_sexual_health.json",
-}
-# ─────────────────────────────────────────────────────────────────────────────
+from datetime import datetime
+import argparse
+import shutil
 
 
-def get_skill_dir() -> Path:
-    return Path(__file__).parent.parent
+BASE_DIR = Path(__file__).parent.parent
+DATA_DIR = BASE_DIR / "data"
+DB_PATH = DATA_DIR / "db" / "healthfit.db"
 
 
-def get_data_dir() -> Path:
-    return get_skill_dir() / "data"
-
-
-def get_export_dir() -> Path:
-    return get_skill_dir() / "exports"
-
-
-def _confirm_private_inclusion() -> bool:
-    """
-    在导出敏感数据前进行交互式二次确认。
-    仅当用户明确输入"yes"时返回 True。
-    """
-    print()
-    print("⚠️  警告：你请求将私密敏感数据纳入本次导出。")
-    print("   涉及文件：" + "、".join(sorted(PRIVATE_JSON_FILES)))
-    print("   导出的 Markdown 报告将以明文形式包含这些数据。")
-    print()
-    answer = input('   请输入 yes 确认，或输入其他任意内容跳过私密数据：').strip().lower()
-    if answer == "yes":
-        print("   ✓ 已确认 —— 私密数据将被纳入本次导出。")
-        return True
-    else:
-        print("   ✗ 已跳过 —— 私密数据不会出现在导出报告中（安全默认值）。")
-        return False
-
-
-def load_json(file_path: Path):
-    """加载 JSON 文件；文件不存在时返回 None。"""
-    if not file_path.exists():
-        return None
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-# ─── 各模块导出函数 ────────────────────────────────────────────────────────────
-
-def export_profile() -> str:
-    profile = load_json(get_data_dir() / "json" / "profile.json")
-    if not profile or not profile.get("nickname"):
-        return "## 用户档案\n\n暂无数据（请先完成建档）\n"
-
-    md = "## 用户档案\n\n"
-    md += f"- **昵称：** {profile.get('nickname', '未设置')}\n"
-    md += f"- **性别：** {profile.get('gender', '未设置')}\n"
-    md += f"- **年龄：** {profile.get('age', '未设置')}\n"
-    md += f"- **身高：** {profile.get('height_cm', '未设置')} cm\n"
-    md += f"- **体重：** {profile.get('weight_kg', '未设置')} kg\n"
-    md += f"- **体脂率：** {profile.get('body_fat_pct', '未设置')}%\n"
-    md += f"- **BMI：** {profile.get('bmi', '未设置')}\n"
-    md += f"- **目标：** {profile.get('primary_goal', '未设置')}\n"
-    md += f"- **目标体重：** {profile.get('target_weight_kg', '未设置')} kg\n"
-    return md + "\n"
-
-
-def export_tcm_profile() -> str:
-    tcm = load_json(get_data_dir() / "json" / "tcm_profile.json")
-    if not tcm or not tcm.get("primary_constitution"):
-        return "## 中医体质档案\n\n暂无数据（请先完成体质辨识）\n"
-
-    md = "## 中医体质档案\n\n"
-    md += f"- **主体质：** {tcm.get('primary_constitution', '未设置')}\n"
-    md += f"- **兼夹体质：** {', '.join(tcm.get('secondary_constitutions', [])) or '无'}\n"
-    md += f"- **辨识日期：** {tcm.get('created_at', '未设置')}\n"
-    md += f"- **最近复查：** {tcm.get('last_assessed', '未设置')}\n"
-
-    tongue_records = tcm.get("tongue_records", [])
-    if tongue_records:
-        md += "\n### 舌象记录\n\n"
-        for record in tongue_records[-3:]:
-            md += (
-                f"- **{record.get('date')}**："
-                f"{record.get('body_color')} {record.get('body_shape')}，"
-                f"{record.get('coating')}\n"
-            )
-    return md + "\n"
-
-
-def export_daily_logs() -> str:
-    daily_dir = get_data_dir() / "json" / "daily"
-    if not daily_dir.exists():
-        return "## 每日日志\n\n暂无数据\n"
-
-    logs = sorted(daily_dir.glob("*.json"), reverse=True)[:7]
-    md = "## 最近 7 天日志\n\n"
-    for log_file in logs:
-        data = load_json(log_file)
-        if not data:
+def export_json_files(output_dir: Path, include_private: bool = False):
+    """导出所有 JSON 文件"""
+    json_dir = DATA_DIR / "json"
+    
+    if not json_dir.exists():
+        print("⚠️ JSON 目录不存在，跳过")
+        return
+    
+    exported_count = 0
+    skipped_count = 0
+    
+    for json_file in json_dir.glob("*.json"):
+        # 跳过私密文件（除非明确要求）
+        if json_file.name == "private_sexual_health.json" and not include_private:
+            print(f"⏭️ 跳过私密文件：{json_file.name}")
+            skipped_count += 1
             continue
-        md += f"### {log_file.stem}\n\n"
-        metrics = data.get("metrics", {})
-        if metrics.get("weight_kg"):
-            md += f"- **体重：** {metrics['weight_kg']} kg\n"
-        if metrics.get("sleep_hours"):
-            md += f"- **睡眠：** {metrics['sleep_hours']} 小时\n"
-        if metrics.get("energy_level"):
-            md += f"- **精力：** {metrics['energy_level']}/10\n"
-        workout_ids = data.get("workout_ids", [])
-        if workout_ids:
-            md += f"- **运动：** {len(workout_ids)} 次\n"
-        md += "\n"
-    return md
+        
+        # 复制文件
+        dest = output_dir / json_file.name
+        shutil.copy2(json_file, dest)
+        print(f"✅ 导出：{json_file.name}")
+        exported_count += 1
+    
+    print(f"\n📊 JSON 文件导出完成：{exported_count} 个文件，跳过 {skipped_count} 个私密文件")
 
 
-def export_achievements() -> str:
-    achievements_file = get_data_dir() / "txt" / "achievements.txt"
-    if not achievements_file.exists():
-        return "## 成就记录\n\n暂无成就\n"
-
-    with open(achievements_file, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    lines = [ln for ln in content.split("\n") if ln.strip() and not ln.startswith("#")]
-    if len(lines) <= 1:
-        return "## 成就记录\n\n暂无成就\n"
-    return "## 成就记录\n\n" + "\n".join(lines) + "\n"
-
-
-def export_sexual_health() -> str:
-    """
-    导出性健康数据。
-    仅在用户显式传入 --include-private 并确认后调用。
-    """
-    sh = load_json(get_data_dir() / "json" / "private_sexual_health.json")
-    if not sh or not sh.get("privacy_confirmed"):
-        return "## 性健康记录\n\n暂无数据\n"
-
-    md = "## 性健康记录\n\n"
-    md += "> ⚠️ 本节包含高度敏感的隐私数据。\n\n"
-
-    common = sh.get("common_data", {})
-    if common:
-        md += "### 通用数据\n\n"
-        md += f"- **频率（每周）：** {common.get('frequency_weekly', '未设置')}\n"
-        md += f"- **事后疲劳程度：** {common.get('post_sex_fatigue_level', '未设置')}\n"
-        md += f"- **影响次日训练：** {common.get('affects_next_day_training', '未设置')}\n\n"
-
-    male = sh.get("male_data")
-    if male:
-        md += "### 男性专项\n\n"
-        md += f"- **勃起功能评分：** {male.get('erectile_function_score', '未设置')}\n"
-        md += f"- **晨勃频率：** {male.get('morning_erection_frequency', '未设置')}\n"
-        md += f"- **症状：** {', '.join(male.get('symptoms', [])) or '无'}\n\n"
-
-    female = sh.get("female_data")
-    if female:
-        md += "### 女性专项\n\n"
-        for k, v in female.items():
-            md += f"- **{k}：** {v}\n"
-        md += "\n"
-
-    return md
+def export_database_to_csv(output_dir: Path):
+    """将数据库表导出为 CSV"""
+    if not DB_PATH.exists():
+        print("⚠️ 数据库不存在，跳过")
+        return
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # 获取所有表名
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = cursor.fetchall()
+    
+    exported_count = 0
+    
+    for (table_name,) in tables:
+        cursor.execute(f"SELECT * FROM {table_name}")
+        rows = cursor.fetchall()
+        
+        # 获取列名
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        # 写入 CSV
+        csv_path = output_dir / f"{table_name}.csv"
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(columns)
+            writer.writerows(rows)
+        
+        print(f"✅ 导出表：{table_name}.csv ({len(rows)} 条记录)")
+        exported_count += 1
+    
+    conn.close()
+    print(f"\n📊 数据库导出完成：{exported_count} 张表")
 
 
-# ─── 报告组装 ──────────────────────────────────────────────────────────────────
+def generate_markdown_report(output_dir: Path):
+    """生成可读的 Markdown 报告"""
+    report_lines = [
+        "# HealthFit 数据导出报告",
+        f"\n导出时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n",
+        "---\n"
+    ]
+    
+    # 读取用户档案
+    profile_path = DATA_DIR / "json" / "profile.json"
+    if profile_path.exists():
+        profile = json.loads(profile_path.read_text(encoding="utf-8"))
+        report_lines.append("## 用户档案\n")
+        report_lines.append(f"- 昵称：{profile.get('nickname', '未设置')}")
+        report_lines.append(f"- 身高：{profile.get('height_cm', '未设置')} cm")
+        report_lines.append(f"- 体重：{profile.get('weight_kg', '未设置')} kg")
+        report_lines.append(f"- 主要目标：{profile.get('primary_goal', '未设置')}")
+        report_lines.append(f"- 创建时间：{profile.get('created_at', '未知')}")
+        report_lines.append(f"- 上次更新：{profile.get('updated_at', '未知')}\n")
+    
+    # 统计数据库记录数
+    if DB_PATH.exists():
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        report_lines.append("## 数据统计\n")
+        
+        cursor.execute("SELECT COUNT(*) FROM workouts")
+        report_lines.append(f"- 运动记录：{cursor.fetchone()[0]} 条")
+        
+        cursor.execute("SELECT COUNT(*) FROM nutrition_entries")
+        report_lines.append(f"- 饮食记录：{cursor.fetchone()[0]} 条")
+        
+        cursor.execute("SELECT COUNT(*) FROM metrics_daily")
+        report_lines.append(f"- 每日指标：{cursor.fetchone()[0]} 条")
+        
+        cursor.execute("SELECT COUNT(*) FROM pr_records")
+        report_lines.append(f"- PR 记录：{cursor.fetchone()[0]} 条")
+        
+        cursor.execute("SELECT COUNT(*) FROM weekly_summaries")
+        report_lines.append(f"- 周统计：{cursor.fetchone()[0]} 条")
+        
+        cursor.execute("SELECT COUNT(*) FROM monthly_summaries")
+        report_lines.append(f"- 月统计：{cursor.fetchone()[0]} 条\n")
+        
+        conn.close()
+    
+    # 写入 TXT 日志统计
+    txt_dir = DATA_DIR / "txt"
+    if txt_dir.exists():
+        report_lines.append("## 文本日志\n")
+        
+        workout_log = txt_dir / "workout_log.txt"
+        if workout_log.exists():
+            lines = workout_log.read_text(encoding="utf-8").strip().split('\n')
+            report_lines.append(f"- 运动日志：{len(lines)} 条记录")
+        
+        nutrition_log = txt_dir / "nutrition_log.txt"
+        if nutrition_log.exists():
+            lines = nutrition_log.read_text(encoding="utf-8").strip().split('\n')
+            report_lines.append(f"- 饮食日志：{len(lines)} 条记录")
+        
+        achievements = txt_dir / "achievements.txt"
+        if achievements.exists():
+            lines = achievements.read_text(encoding="utf-8").strip().split('\n')
+            report_lines.append(f"- 成就记录：{len(lines)} 条")
+        
+        report_lines.append("")
+    
+    # 写入报告
+    report_path = output_dir / "export_report.md"
+    report_path.write_text("\n".join(report_lines), encoding="utf-8")
+    print(f"✅ 生成报告：export_report.md")
 
-def generate_report(include_private: bool = False) -> str:
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    md = "# HealthFit 健康数据导出报告\n\n"
-    md += f"**导出时间：** {timestamp}\n"
-    md += f"**私密数据是否包含：** {'是（用户已确认）' if include_private else '否（默认排除）'}\n\n"
-    md += "---\n\n"
-
-    md += export_profile()
-    md += "---\n\n"
-    md += export_tcm_profile()
-    md += "---\n\n"
-    md += export_daily_logs()
-    md += "---\n\n"
-    md += export_achievements()
-
-    if include_private:
-        md += "---\n\n"
-        md += export_sexual_health()
-
-    return md
-
-
-# ─── 命令行入口 ────────────────────────────────────────────────────────────────
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="HealthFit 数据导出工具",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=(
-            "隐私说明：\n"
-            "  private_sexual_health.json 默认被排除在导出报告之外。\n"
-            "  使用 --include-private 参数可将其纳入导出，但需通过交互式二次确认。"
-        ),
-    )
-    parser.add_argument(
-        "--include-private",
-        action="store_true",
-        default=False,
-        help="将私密/敏感数据纳入导出报告（需要交互式二次确认）。",
-    )
-    return parser.parse_args()
-
-
-def main() -> Path:
-    print("🔵 HealthFit 数据导出工具")
-    print("=" * 50)
-
-    args = parse_args()
-
-    # 私密数据的二次确认门控
-    include_private = False
+def main():
+    parser = argparse.ArgumentParser(description="HealthFit 数据导出")
+    parser.add_argument("--output", "-o", default="./healthfit_export", help="导出目录")
+    parser.add_argument("--include-private", action="store_true", help="包含私密数据（需二次确认）")
+    parser.add_argument("--format", choices=["all", "json", "csv", "markdown"], default="all",
+                       help="导出格式")
+    
+    args = parser.parse_args()
+    
+    # 私密数据二次确认
     if args.include_private:
-        include_private = _confirm_private_inclusion()
+        print("\n" + "="*60)
+        print("⚠️  警告：高度敏感数据导出确认  ⚠️")
+        print("="*60)
+        print("""
+您选择了导出私密数据，包括：
+  - 性健康记录（private_sexual_health.json）
+  - 所有个人健康隐私信息
 
-    export_dir = get_export_dir()
-    export_dir.mkdir(parents=True, exist_ok=True)
+此操作风险：
+  ❌ 备份文件可能被他人访问
+  ❌ 云同步可能自动上传
+  ❌ 数据泄露可能造成隐私损害
 
-    print("正在生成导出报告...")
-    report = generate_report(include_private=include_private)
-
+请确认您理解以上风险。
+""")
+        print("="*60)
+        
+        # 随机验证码确认
+        import random
+        import string
+        verify_code = ''.join(random.choices(string.ascii_uppercase, k=6))
+        print(f"\n请输入以下验证码以确认：{verify_code}")
+        
+        user_input = input("验证码：").strip().upper()
+        if user_input != verify_code:
+            print("❌ 验证码错误，已取消操作")
+            return
+        
+        # 记录操作日志
+        log_path = DATA_DIR / "security_log.txt"
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now()}] 私密数据导出操作已执行\n")
+        
+        print("✅ 验证通过，继续执行导出...\n")
+    
+    # 创建输出目录
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_file = export_dir / f"export_{timestamp}.md"
-    with open(report_file, "w", encoding="utf-8") as f:
-        f.write(report)
-
-    print(f"✓ 报告已导出 → {report_file}")
-    print("=" * 50)
-    print("✅ 导出完成！")
-
-    if not include_private and PRIVATE_JSON_FILES:
+    export_dir = output_dir / f"export_{timestamp}"
+    export_dir.mkdir()
+    
+    print(f"📁 导出目录：{export_dir}\n")
+    
+    # 执行导出
+    if args.format in ["all", "json"]:
+        print("📄 导出 JSON 文件...")
+        export_json_files(export_dir, args.include_private)
         print()
-        print("ℹ️  私密数据已被排除在本次导出之外（安全默认值）。")
-        print("   如需导出私密数据，请使用 --include-private 参数重新运行。")
-
-    return report_file
+    
+    if args.format in ["all", "csv"]:
+        print("📊 导出数据库为 CSV...")
+        export_database_to_csv(export_dir)
+        print()
+    
+    if args.format in ["all", "markdown"]:
+        print("📝 生成 Markdown 报告...")
+        generate_markdown_report(export_dir)
+        print()
+    
+    print(f"\n✅ 导出完成！目录：{export_dir}")
+    print(f"💡 提示：可手动压缩备份，或上传到云存储")
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"❌ 导出失败：{e}")
-        raise
+    main()

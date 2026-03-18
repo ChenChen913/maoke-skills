@@ -13,8 +13,28 @@ import sys
 import shutil
 import json
 import argparse
+import logging
+import time
+import random
+import string
 from datetime import datetime
 from pathlib import Path
+
+# 配置日志
+def setup_logging():
+    """设置日志记录"""
+    log_path = Path(__file__).parent.parent / "data" / "backup.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    logging.basicConfig(
+        filename=log_path,
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        encoding='utf-8'
+    )
+    return logging.getLogger(__name__)
+
+logger = setup_logging()
 
 # ─── 敏感文件名单 ─────────────────────────────────────────────────────────────
 # 此名单中的文件默认被排除在备份之外。
@@ -42,21 +62,100 @@ def get_backup_dir() -> Path:
 
 def _confirm_private_inclusion() -> bool:
     """
-    在备份敏感文件前进行交互式二次确认。
-    仅当用户明确输入"yes"时返回 True。
+    在备份敏感文件前进行交互式二次确认（增强版）。
+    包含随机验证码确认和操作日志记录。
+    仅当用户输入正确验证码时返回 True。
     """
     print()
-    print("⚠️  警告：你请求将私密敏感文件纳入本次备份。")
-    print("   涉及文件：" + "、".join(sorted(PRIVATE_FILES)))
-    print("   这些文件可能包含性健康记录等高度敏感的个人数据。")
-    print()
-    answer = input('   请输入 yes 确认，或输入其他任意内容跳过私密文件：').strip().lower()
-    if answer == "yes":
-        print("   ✓ 已确认 —— 私密文件将被纳入本次备份。")
-        return True
-    else:
-        print("   ✗ 已跳过 —— 私密文件不会被备份（安全默认值）。")
+    print("=" * 60)
+    print("⚠️  警告：高度敏感数据备份确认  ⚠️")
+    print("=" * 60)
+    print("""
+你请求将私密敏感文件纳入本次备份。
+
+涉及文件：
+  - private_sexual_health.json（性健康记录）
+  - 其他个人健康隐私信息
+
+此操作风险：
+  ❌ 备份文件可能被他人访问
+  ❌ 云同步可能自动上传
+  ❌ 数据泄露可能造成隐私损害
+
+请确认你理解以上风险。
+""")
+    print("=" * 60)
+    
+    # 随机验证码确认
+    verify_code = ''.join(random.choices(string.ascii_uppercase, k=6))
+    print(f"\n请输入以下验证码以确认：{verify_code}")
+    
+    user_input = input("验证码：").strip().upper()
+    if user_input != verify_code:
+        print("❌ 验证码错误，已取消操作")
+        logger.warning("私密文件备份验证失败")
         return False
+    
+    # 记录操作日志
+    log_path = Path(__file__).parent.parent / "data" / "security_log.txt"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(f"[{datetime.now()}] 私密文件备份操作已确认\n")
+    
+    logger.info("私密文件备份验证通过")
+    print("✅ 验证通过，继续执行备份...\n")
+    return True
+
+
+def check_disk_space(required_mb: int = 100) -> bool:
+    """检查磁盘空间是否充足"""
+    try:
+        import shutil
+        total, used, free = shutil.disk_usage(Path(__file__).parent)
+        free_mb = free // (1024 * 1024)
+        if free_mb < required_mb:
+            logger.error(f"磁盘空间不足：需要 {required_mb}MB，当前可用 {free_mb}MB")
+            print(f"❌ 磁盘空间不足：需要 {required_mb}MB，当前可用 {free_mb}MB")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"磁盘空间检查失败：{e}")
+        return True  # 检查失败时不阻止备份
+
+
+def safe_copy(src: Path, dest: Path) -> bool:
+    """安全复制文件，带错误处理"""
+    try:
+        if not src.exists():
+            logger.warning(f"源文件不存在：{src}")
+            return False
+        
+        if not dest.parent.exists():
+            dest.parent.mkdir(parents=True)
+        
+        shutil.copy2(src, dest)
+        logger.info(f"成功复制：{src} -> {dest}")
+        return True
+    
+    except PermissionError:
+        logger.error(f"权限不足，无法复制：{src}")
+        print(f"❌ 权限错误：无法访问 {src}")
+        return False
+    
+    except OSError as e:
+        logger.error(f"系统错误：{e}")
+        print(f"❌ 系统错误：{e}")
+        return False
+
+
+def backup_with_retry(src: Path, dest: Path, max_retries: int = 3) -> bool:
+    """带重试的备份"""
+    for attempt in range(max_retries):
+        if safe_copy(src, dest):
+            return True
+        logger.warning(f"第 {attempt + 1} 次尝试失败，重试中...")
+        time.sleep(1)
+    return False
 
 
 def _copy_json_dir(json_dir: Path, dest: Path, include_private: bool) -> dict:
@@ -68,17 +167,21 @@ def _copy_json_dir(json_dir: Path, dest: Path, include_private: bool) -> dict:
     dest.mkdir(parents=True, exist_ok=True)
     summary = {"copied": [], "skipped": []}
 
-    # 复制顶层 JSON 文件（按名单过滤）
+    # 复制顶层 JSON 文件（按名单过滤，使用安全复制）
     for src_file in json_dir.glob("*.json"):
         if src_file.name in PRIVATE_FILES:
             if include_private:
-                shutil.copy2(src_file, dest / src_file.name)
-                summary["copied"].append(src_file.name)
+                if backup_with_retry(src_file, dest / src_file.name):
+                    summary["copied"].append(src_file.name)
+                else:
+                    summary["skipped"].append(src_file.name + " (复制失败)")
             else:
                 summary["skipped"].append(src_file.name)
         else:
-            shutil.copy2(src_file, dest / src_file.name)
-            summary["copied"].append(src_file.name)
+            if backup_with_retry(src_file, dest / src_file.name):
+                summary["copied"].append(src_file.name)
+            else:
+                summary["skipped"].append(src_file.name + " (复制失败)")
 
     # 完整复制 daily/ 子目录（该目录中不存在私密文件）
     daily_src = json_dir / "daily"
