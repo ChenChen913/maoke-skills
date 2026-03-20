@@ -48,16 +48,21 @@ triggers:
 ```
 learning-assistant/
 ├── SKILL.md                        # 导航 + 全局规则 + 会话 Checklist
-└── references/
-    ├── 01-knowledge-analysis.md    # 知识解析模块（维度 + 输出规则）
-    ├── 02-interaction-modes.md     # 互动模式（苏格拉底 / 面试 / 费曼）
-    ├── 03-file-templates.md        # 模板 + 命名规范
-    ├── 04-code-adaptation.md       # 代码适配规则
-    ├── 05-domain-adaptation.md     # 领域适配（CS / AI / ML / RL / 网络 / SE）
-    ├── 06-research-strategy.md     # 调研策略与降级预案
-    ├── 07-index-and-review.md      # 索引与复盘系统
-    ├── 08-session-continuity.md    # 会话连续性与锚点机制
-    └── 09-profile-operations.md    # 用户画像操作（初始化、被动积累、快照重建）
+├── references/                     # 配置文件（永远不变）
+│   ├── 01-knowledge-analysis.md    # 知识解析模块（维度 + 输出规则）
+│   ├── 02-interaction-modes.md     # 互动模式（苏格拉底 / 面试 / 费曼）
+│   ├── 03-file-templates.md        # 模板 + 命名规范
+│   ├── 04-code-adaptation.md       # 代码适配规则
+│   ├── 05-domain-adaptation.md     # 领域适配（CS / AI / ML / RL / 网络 / SE）
+│   ├── 06-research-strategy.md     # 调研策略与降级预案
+│   ├── 07-index-and-review.md      # 索引与复盘系统
+│   ├── 08-session-continuity.md    # 会话连续性与锚点机制
+│   └── 09-profile-operations.md    # 用户画像操作（初始化、被动积累、快照重建）
+└── workspace/                      # 数据文件（持续增长，运行时自动生成）
+    ├── README.md                   # 说明文件（见此文件了解各文件用途）
+    ├── USER_PROFILE.md             # 用户画像（首次会话后生成）
+    ├── LEARNING_INDEX.md           # 全局学习索引（首次会话后生成）
+    └── YYYYMMDD_[类型]_[主题].md   # 各类学习产物（按需生成）
 ```
 
 ---
@@ -81,24 +86,28 @@ learning-assistant/
 
 ```
 □ Step 1：确认当前日期
-          → 向用户询问："请问您当前的日期是？（确保技术内容的时效性）"
-          → 将日期写入本次 ANCHOR 锚点文件
+          → 直接使用系统当前日期（无需询问用户）
+          → 将日期写入本次 ANCHOR 锚点文件（格式：YYYY-MM-DD）
 
 □ Step 2：读取用户画像
-          IF USER_PROFILE.md 不存在：
+          IF workspace/USER_PROFILE.md 不存在：
               → 立即读取 references/09-profile-operations.md
               → 执行首次初始化问卷（规则见 09 文件）
           ELSE：
-              → 读取 USER_PROFILE.md 最新快照版本
+              → 读取 workspace/USER_PROFILE.md 最新快照版本
               → 会话计数 +1
               → 根据画像调整后续输出的深度和风格
 
 □ Step 3：检查复习提醒
-          → 读取 LEARNING_INDEX.md 中的复习日期追踪表
-          IF 有条目的"下次复习日期" ≤ 今日日期：
-              → 向用户展示到期提醒，询问是否现在复习
-          ELSE：
+          IF workspace/LEARNING_INDEX.md 不存在：
+              → 创建空白 workspace/LEARNING_INDEX.md（使用 references/03-file-templates.md 中的模板）
               → 跳过，继续 Step 4
+          ELSE：
+              → 读取 workspace/LEARNING_INDEX.md 中的复习日期追踪表
+              IF 有条目的"下次复习日期" ≤ 今日日期：
+                  → 向用户展示到期提醒，询问是否现在复习
+              ELSE：
+                  → 跳过，继续 Step 4
 
 □ Step 4：处理用户请求
           → 按第二节触发场景规则执行
@@ -107,7 +116,7 @@ learning-assistant/
 **【会话结束前，按序执行】**
 
 ```
-□ Step A：判断成长事件（读取 USER_PROFILE.md）
+□ Step A：判断成长事件（读取 workspace/USER_PROFILE.md）
           IF 发生特定学习事件（详见 09-profile-operations.md "被动积累"规则）：
               → 执行被动积累：追加成长记录 + 更新技术栈快照状态
 
@@ -120,7 +129,7 @@ learning-assistant/
               → 立即读取 references/08-session-continuity.md
               → 生成 ANCHOR 锚点文件（遵循命名规范）
 
-□ Step D：更新 LEARNING_INDEX.md
+□ Step D：更新 workspace/LEARNING_INDEX.md
           → 将本次会话生成的所有新文件追加到文件索引表
           → 更新主题标签云和复习日期追踪表
 ```
@@ -132,7 +141,7 @@ learning-assistant/
 本系统包含三层机制，详细逻辑已下沉至 `references/09-profile-operations.md`，此处仅列出入口：
 
 1. **第一层：首次初始化**
-   - **触发条件**：`USER_PROFILE.md` 不存在。
+   - **触发条件**：`workspace/USER_PROFILE.md` 不存在。
    - **动作**：读取 `09-profile-operations.md`，执行问卷并创建文件。
 
 2. **第二层：被动积累**

@@ -1,7 +1,7 @@
 # 索引与复盘系统
 
 ## 概述
-管理全局 `LEARNING_INDEX.md` 并生成结构化复盘报告。
+管理全局 `workspace/LEARNING_INDEX.md` 并生成结构化复盘报告。
 在每次会话结束时（步骤 D）或用户要求“复盘”时触发。
 
 ## 索引管理 (步骤 D)
@@ -18,14 +18,14 @@
      - 复习 3: 第 7 天
      - 复习 4: 第 15 天
      - 复习 5: 第 30 天
-   - 在 `LEARNING_INDEX.md` 的 `复习日期追踪表` 中添加条目。
+   - 在 `workspace/LEARNING_INDEX.md` 的 `复习日期追踪表` 中添加条目。
    - ⚠️ **重要**：复习日期必须填写 **绝对日期**（格式：YYYY-MM-DD），**不可**填写相对天数（如"第 7 天"），否则 Step 3 的日期比较逻辑将无法执行。
 
 ## 复盘生成 (用户触发)
 
 当用户说“复盘 [主题]”或“复盘最近的学习”时：
 
-1. **定位历史**：在 `LEARNING_INDEX.md` 中查找相关文件。
+1. **定位历史**：在 `workspace/LEARNING_INDEX.md` 中查找相关文件。
 2. **提取薄弱点**：
    - 未解决的 `CONFUSION` 条目。
    - 该主题的 `MISTAKE` 记录。
@@ -50,5 +50,5 @@
   - 在未来的复盘中重新测试。
 
 如果在后续会话中解决了 `CONFUSION` 或 `MISTAKE`：
-- 在 `LEARNING_INDEX.md` 中将其标记为 `[Resolved]`。
-- 在 `USER_PROFILE.md` 中添加 `成长记录`。
+- 在 `workspace/LEARNING_INDEX.md` 中将其标记为 `[Resolved]`。
+- 在 `workspace/USER_PROFILE.md` 中添加 `成长记录`。

@@ -12,7 +12,7 @@
 - **中文技术社区**：掘金, SegmentFault, 博客园, CSDN (已过滤质量)。
 - **官方中文文档**：MDN (zh-CN), 框架文档 (Vue/React/Spring/Django 等)。
 - **视频教程**：Bilibili (技术区)。
-- **用户偏好**：检查 `USER_PROFILE.md` 中的特定站点。
+- **用户偏好**：检查 `workspace/USER_PROFILE.md` 中的特定站点。
 
 ### 2. [DEEP] 深度调研 (显式触发 / 自动升级)
 **目标**：权威、前沿或冷门主题。
