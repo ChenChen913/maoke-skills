@@ -1,5 +1,4 @@
 import os
-import glob
 import yaml
 
 def list_skills():
