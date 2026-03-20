@@ -33,3 +33,10 @@ This collection houses top-tier design languages, categorized by industry and ae
 | `ukiyo-e` | Japanese Woodblock | `Flat colors`, `Bold outlines`, `Asymmetrical composition`, `Washi paper texture` |
 | `bauhaus-1919` | Bauhaus Modernism | `Primary colors (Red/Blue/Yellow)`, `Geometric shapes`, `Functionality`, `Sans-serif` |
 | `art-deco` | Art Deco Luxury | `Gold leaf`, `Geometric patterns`, `Velvet texture`, `Great Gatsby vibe`, `Symmetry` |
+
+## 5. Lifestyle & Organic (The "Earth-First" Look)
+| ID | Name | Keywords (for Prompt) |
+|----|------|-----------------------|
+| `warm-academia` | Warm Academia | `Playfair Display`, `Aged parchment`, `Candlelight`, `Leather-bound books`, `Chiaroscuro`, `Film grain`, `Sepia tone`, `Rembrandt portrait` |
+| `nature-organic` | Organic Nature | `Linen texture`, `Botanical illustration`, `Golden hour`, `Kodak Portra 400`, `Hand-thrown ceramics`, `Watercolor wash`, `Wabi-sabi`, `Earthy pigments` |
+| `cyber-glass` | Cyber Glassmorphism | `Frosted glass UI`, `Neon cyan rim light`, `Deep space background`, `Ray tracing`, `Volumetric light`, `Isometric 3D`, `Bioluminescence`, `Unreal Engine 5` |
