@@ -52,6 +52,7 @@ The AI will handle the download and placement automatically.
 | **learning-assistant** | Technical learning assistant for CS, AI, ML, and Software Engineering. Generates study plans, knowledge summaries, flashcards, and deep-dives on technical topics. |
 | **daily-decision-making** | Structured personal decision framework for life and career choices. Implements a Personal Decision Database to handle trade-offs and uncertainty. |
 | **knowledge-distiller** | Extracts and structures tacit knowledge through Socratic questioning. Turns vague ideas into clear methodologies and documented expertise. |
+| **tutorial-writer** | Complete workflow for writing high-quality technical tutorials. Supports 6 tutorial types (project, tool, installation, concept, comparison, workflow), generates 4 versions for comparison, two-round review process, and includes mental models for explaining abstract concepts. |
 
 ### 🏥 Health & Fitness
 
@@ -94,6 +95,7 @@ maoke-skills/
     ├── project-java-init
     ├── skill-evaluator
     ├── skill-evolution-tracker
+    ├── tutorial-writer
     └── wechat-article-writer
 ```
 

@@ -48,6 +48,7 @@ git clone https://github.com/ChenChen913/maoke-skills.git
 | **learning-assistant** | 计算机科学、AI、机器学习和软件工程技术学习助手。可生成学习计划、知识总结、抽认卡，支持深度技术话题探究。 |
 | **daily-decision-making** | 个人生活与职业决策结构化框架。建立个人决策数据库，系统处理不确定性与多方权衡。 |
 | **knowledge-distiller** | 通过苏格拉底式追问提取和结构化隐性知识，将模糊想法转化为清晰方法论，帮助记录个人专业经验。 |
+| **tutorial-writer** | 编写高质量技术教程的完整工作流。支持 6 种教程类型（项目、工具、安装、概念、对比、工作流），生成 4 个版本综合选优，两轮审核机制，内置思维模型辅助讲解抽象概念。 |
 
 ### 🏥 健康与健身
 
@@ -90,6 +91,7 @@ maoke-skills/
     ├── project-java-init
     ├── skill-evaluator
     ├── skill-evolution-tracker
+    ├── tutorial-writer
     └── wechat-article-writer
 ```
 
